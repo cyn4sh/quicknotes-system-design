@@ -3,6 +3,10 @@ const API_URL = "https://jsonplaceholder.typicode.com/posts";
 const loadBtn = document.querySelector("#load-btn");
 const statusEl = document.querySelector("#status");
 const notesList = document.querySelector("#notes-list");
+const noteForm = document.querySelector("#note-form");
+const titleInput = document.querySelector("#title-input");
+const bodyInput = document.querySelector("#body-input");
+const submitBtn = document.querySelector("#submit-btn");
 
 async function request(url, options = {}) {
   const response = await fetch(url, options);
@@ -26,6 +30,58 @@ function setStatus(message, type) {
   }
 }
 
+// Note: JSONPlaceholder doesn't actually persist deletes (or creates) on its
+// server — it simulates a successful response but the data isn't really
+// removed. So here, a successful DELETE response removes the note from the
+// page's own list (the UI), which is the correct, honest behavior for a
+// practice API that doesn't have real persistence.
+async function deleteNote(id, listItem, button) {
+  button.disabled = true;
+  setStatus("Deleting note...", "loading");
+
+  try {
+    const response = await fetch(`${API_URL}/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    listItem.remove();
+    setStatus("Note deleted.", "success");
+
+    if (notesList.children.length === 0) {
+      renderNotes([]);
+    }
+  } catch (error) {
+    setStatus("Failed to delete note. Please try again.", "error");
+    button.disabled = false;
+  }
+}
+
+function createNoteElement(note) {
+  const li = document.createElement("li");
+  li.className = "note-card";
+  li.dataset.id = note.id;
+
+  const titleEl = document.createElement("h3");
+  titleEl.textContent = note.title;
+
+  const bodyEl = document.createElement("p");
+  bodyEl.textContent = note.body;
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.className = "delete-btn";
+  deleteBtn.textContent = "Delete";
+  deleteBtn.addEventListener("click", () => deleteNote(note.id, li, deleteBtn));
+
+  li.appendChild(titleEl);
+  li.appendChild(bodyEl);
+  li.appendChild(deleteBtn);
+  return li;
+}
+
 function renderNotes(notes) {
   notesList.textContent = "";
 
@@ -37,20 +93,16 @@ function renderNotes(notes) {
   }
 
   notes.forEach(note => {
-    const li = document.createElement("li");
-    li.className = "note-card";
-    li.dataset.id = note.id;
-
-    const titleEl = document.createElement("h3");
-    titleEl.textContent = note.title;
-
-    const bodyEl = document.createElement("p");
-    bodyEl.textContent = note.body;
-
-    li.appendChild(titleEl);
-    li.appendChild(bodyEl);
-    notesList.appendChild(li);
+    notesList.appendChild(createNoteElement(note));
   });
+}
+
+function addNoteToTop(note) {
+  const emptyMsg = notesList.querySelector("li:not(.note-card)");
+  if (emptyMsg) {
+    notesList.textContent = "";
+  }
+  notesList.insertBefore(createNoteElement(note), notesList.firstChild);
 }
 
 async function loadNotes() {
@@ -69,31 +121,6 @@ async function loadNotes() {
 }
 
 loadBtn.addEventListener("click", loadNotes);
-
-const noteForm = document.querySelector("#note-form");
-const titleInput = document.querySelector("#title-input");
-const bodyInput = document.querySelector("#body-input");
-const submitBtn = document.querySelector("#submit-btn");
-
-function addNoteToTop(note) {
-  if (notesList.children.length === 1 && notesList.children[0].tagName === "LI" && !notesList.children[0].dataset.id) {
-    notesList.textContent = "";
-  }
-
-  const li = document.createElement("li");
-  li.className = "note-card";
-  li.dataset.id = note.id;
-
-  const titleEl = document.createElement("h3");
-  titleEl.textContent = note.title;
-
-  const bodyEl = document.createElement("p");
-  bodyEl.textContent = note.body;
-
-  li.appendChild(titleEl);
-  li.appendChild(bodyEl);
-  notesList.insertBefore(li, notesList.firstChild);
-}
 
 noteForm.addEventListener("submit", async (e) => {
   e.preventDefault();
